@@ -36,13 +36,7 @@ homepage = "https://github.com/beda-software/aidbox-python-sdk-tbs"
 documentation = "https://github.com/beda-software/aidbox-python-sdk-tbs#readme"
 repository = "https://github.com/beda-software/aidbox-python-sdk-tbs.git"
 
-[tool.setuptools]
-zip-safe = false
-packages = ["aidbox_python_sdk_tbs"]
-
-[tool.setuptools.dynamic]
-version = { attr = "aidbox_python_sdk_tbs.VERSION" }
-
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
