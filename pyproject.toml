@@ -1,0 +1,48 @@
+[project]
+name = "aidbox-python-sdk-tbs"
+description = "Topic-Based Subscription extension for Aidbox SDK for python"
+readme = "README.md"
+license = { file = "LICENSE.md" }
+keywords = ["aidbox", "fhir", "tbs"]
+dynamic = ["version"]
+authors = [
+  { name = "beda.software", email = "aidbox-python-sdk@beda.software" },
+]
+dependencies = [
+  "aidbox-python-sdk>=0.1.12",
+  "fhirpy>=2.0.3",
+  "aiohttp>=3.10.5",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Web Environment",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Internet :: WWW/HTTP",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+r4b = ["fhirpy-types-r4b"]
+r5 = ["fhirpy-types-r5"]
+
+[project.urls]
+homepage = "https://github.com/beda-software/aidbox-python-sdk-tbs"
+documentation = "https://github.com/beda-software/aidbox-python-sdk-tbs#readme"
+repository = "https://github.com/beda-software/aidbox-python-sdk-tbs.git"
+
+[tool.setuptools]
+zip-safe = false
+packages = ["aidbox_python_sdk_tbs"]
+
+[tool.setuptools.dynamic]
+version = { attr = "aidbox_python_sdk_tbs.VERSION" }
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
