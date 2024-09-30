@@ -28,7 +28,8 @@ from collections.abc import AsyncGenerator
 
 import fhirpy_types_r4b as r4b
 from aidbox_python_sdk.types import SDKOperation, SDKOperationRequest
-from aidbox_python_sdk_tbs import SubscriptionDefinition, r4b_tbs_ctx_factory
+from aidbox_python_sdk_tbs import SubscriptionDefinition
+from aidbox_python_sdk_tbs.r4b impotr r4b_tbs_ctx_factory
 from aiohttp import web
 
 from app import app_keys as ak
