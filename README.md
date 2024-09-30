@@ -26,7 +26,6 @@ Create `app/subscriptions.py` with the following content:
 import logging
 from collections.abc import AsyncGenerator
 
-import fhirpy_types_r4b as r4b
 from aidbox_python_sdk.types import SDKOperation, SDKOperationRequest
 from aidbox_python_sdk_tbs import SubscriptionDefinition
 from aidbox_python_sdk_tbs.r4b impotr r4b_tbs_ctx_factory

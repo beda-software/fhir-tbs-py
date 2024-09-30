@@ -10,7 +10,7 @@ authors = [
 ]
 dependencies = [
   "aidbox-python-sdk>=0.1.12",
-  "fhirpy>=2.0.3",
+  "fhirpy>=2.0.12",
   "aiohttp>=3.10.5",
 ]
 classifiers = [
