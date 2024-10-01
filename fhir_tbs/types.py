@@ -12,7 +12,7 @@ class FilterBy(TypedDict):
     modifier: NotRequired[str]
 
 
-SubscriptionHandler = Callable[[web.Application, Any], Coroutine[Any, Any, None]]
+SubscriptionHandler = Callable[[web.Application, str, str | None], Coroutine[Any, Any, None]]
 
 
 class SubscriptionDefinition(TypedDict):

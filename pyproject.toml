@@ -1,15 +1,14 @@
 [project]
-name = "aidbox-python-sdk-tbs"
-description = "Topic-Based Subscription extension for Aidbox SDK for python"
+name = "fhir-tbs-py"
+description = "Topic-Based Subscription context for python aiohttp web applications"
 readme = "README.md"
 license = { file = "LICENSE.md" }
-keywords = ["aidbox", "fhir", "tbs"]
+keywords = ["fhir", "tbs"]
 dynamic = ["version"]
 authors = [
-  { name = "beda.software", email = "aidbox-python-sdk@beda.software" },
+  { name = "beda.software", email = "fhir-tbs-py@beda.software" },
 ]
 dependencies = [
-  "aidbox-python-sdk>=0.1.12",
   "fhirpy>=2.0.12",
   "aiohttp>=3.10.5",
 ]
@@ -32,9 +31,9 @@ r4b = ["fhirpy-types-r4b"]
 r5 = ["fhirpy-types-r5"]
 
 [project.urls]
-homepage = "https://github.com/beda-software/aidbox-python-sdk-tbs"
-documentation = "https://github.com/beda-software/aidbox-python-sdk-tbs#readme"
-repository = "https://github.com/beda-software/aidbox-python-sdk-tbs.git"
+homepage = "https://github.com/beda-software/fhir-tbs-py"
+documentation = "https://github.com/beda-software/fhir-tbs-py#readme"
+repository = "https://github.com/beda-software/fhir-tbs-py.git"
 
 [build-system]
 requires = ["flit_core >=3.2,<4"]
