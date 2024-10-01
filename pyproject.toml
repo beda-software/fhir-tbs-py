@@ -1,5 +1,5 @@
 [project]
-name = "fhir-tbs-py"
+name = "fhir-tbs"
 description = "Topic-Based Subscription context for python aiohttp web applications"
 readme = "README.md"
 license = { file = "LICENSE.md" }

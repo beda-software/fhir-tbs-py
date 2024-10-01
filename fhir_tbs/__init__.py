@@ -2,7 +2,7 @@ from .implementation import tbs_ctx_factory
 from .types import FilterBy, SubscriptionDefinition
 
 __title__ = "fhir-tbs-py"
-__version__ = "0.0.1b0"
+__version__ = "0.0.1b1"
 __author__ = "beda.software"
 __license__ = "MIT"
 __copyright__ = "Copyright 2024 beda.software"

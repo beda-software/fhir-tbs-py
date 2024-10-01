@@ -4,7 +4,7 @@ Topic-based subscription extension for python aiohttp web applications
 
 ## Install
 
-Install `fhir-tbs-py[r4b]` or `fhir-tbs-py[r5]` using poetry/pipenv/pip.
+Install `fhir-tbs[r4b]` or `fhir-tbs[r5]` using poetry/pipenv/pip.
 
 ## Usage
 
