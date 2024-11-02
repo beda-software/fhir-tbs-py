@@ -1,97 +1,162 @@
 from collections.abc import AsyncGenerator
+from typing import Literal
 
 import fhirpy_types_r5 as r5
 from aiohttp import web
 from fhirpy import AsyncFHIRClient
+from pydantic import BaseModel
 
-from .implementation import SubscriptionEvent, SubscriptionInfo, tbs_ctx_factory
-from .types import SubscriptionDefinition
+from fhir_tbs.utils import extract_relative_reference
+
+from .implementation import tbs_ctx_factory
+from .types import (
+    PayloadContentType,
+    SubscriptionDefinition,
+    SubscriptionEvent,
+    SubscriptionInfo,
+    VersionedClientProtocol,
+)
 
 
-def r5_tbs_ctx_factory(
+def r5_tbs_ctx_factory(  # noqa: PLR0913
     app: web.Application,
     app_url: str,
     webhook_path_prefix: str,
-    fhir_client: AsyncFHIRClient,
-    subscriptions: list[SubscriptionDefinition],
+    subscriptions: list[SubscriptionDefinition[r5.AnyResource]],
+    *,
+    subscription_fhir_client: AsyncFHIRClient | None = None,
+    subscription_payload_content: PayloadContentType = "id-only",
+    webhook_token: str | None = None,
 ) -> AsyncGenerator[None, None]:
     return tbs_ctx_factory(
+        R5Client,
         app,
         app_url,
         webhook_path_prefix,
-        fhir_client,
         subscriptions,
-        _fetch_subscription=r5_fetch_subscription,
-        _fetch_subscription_events=r5_fetch_subscription_events,
-        _build_subscription=r5_build_subscription,
-        _extract_subscription_info=r5_extract_subscription_info,
-        _extract_subscription_events_from_bundle=r5_extract_subscription_events_from_bundle,
+        subscription_fhir_client=subscription_fhir_client,
+        subscription_payload_content=subscription_payload_content,
+        webhook_token=webhook_token,
     )
 
 
-async def r5_fetch_subscription(
-    fhir_client: AsyncFHIRClient, webhook_url: str
-) -> r5.Subscription | None:
-    return await fhir_client.resources(r5.Subscription).search(url=webhook_url).first()
+class R5Client(VersionedClientProtocol[r5.Subscription, r5.AnyResource]):
+    @classmethod
+    async def fetch_subscription(
+        cls: type["R5Client"], fhir_client: AsyncFHIRClient, webhook_url: str
+    ) -> r5.Subscription | None:
+        return await fhir_client.resources(r5.Subscription).search(url=webhook_url).first()
+
+    @classmethod
+    async def fetch_subscription_events(
+        cls: type["R5Client"],
+        fhir_client: AsyncFHIRClient,
+        subscription: r5.Subscription,
+        since: int | None,
+        until: int | None,
+    ) -> list[SubscriptionEvent[r5.AnyResource]]:
+        bundle_data = await fhir_client.execute(
+            f"Subscription/{subscription.id}/$events",
+            method="GET",
+            params={"eventsSinceNumber": since, "eventsUntilNumber": until},
+        )
+        return cls.extract_subscription_events_from_bundle(bundle_data)
+
+    @classmethod
+    def extract_subscription_info(
+        cls: type["R5Client"], subscription: r5.Subscription
+    ) -> SubscriptionInfo:
+        token = None
+        parameters = subscription.parameter or []
+        for parameter in parameters:
+            if parameter.name.lower() == "x-api-key":
+                token = parameter.value
+
+        return {"status": subscription.status, "token": token}
+
+    @classmethod
+    def extract_subscription_events_from_bundle(
+        cls: type["R5Client"],
+        bundle_data: dict,
+    ) -> list[SubscriptionEvent[r5.AnyResource]]:
+        notification_bundle = r5.Bundle(**bundle_data)
+        _extract_relative_references_recursive(notification_bundle)
+        assert notification_bundle.entry
+        assert notification_bundle.entry[0]
+        assert notification_bundle.entry[0].resource
+        subscription_status = notification_bundle.entry[0].resource
+        assert isinstance(subscription_status, r5.SubscriptionStatus)
+
+        included_resources_by_reference = {
+            f"{entry.resource.resourceType}/{entry.resource.id}": entry.resource
+            for entry in notification_bundle.entry[1:]
+            if entry.resource
+        }
+
+        subscription_events: list[SubscriptionEvent[r5.AnyResource]] = []
+
+        for event in subscription_status.notificationEvent or []:
+            if not event.focus or not event.focus.reference:
+                continue
+            focus_reference = event.focus.reference
+            context_references = [
+                ctx.reference for ctx in (event.additionalContext or []) if ctx.reference
+            ]
+
+            subscription_events.append(
+                {
+                    "reference": focus_reference,
+                    "included_resources": [
+                        included_resources_by_reference[reference]
+                        for reference in [*context_references, focus_reference]
+                        if reference in included_resources_by_reference
+                    ],
+                    "timestamp": event.timestamp,
+                    "event_number": int(event.eventNumber),
+                }
+            )
+
+        return subscription_events
+
+    @classmethod
+    def build_subscription(
+        cls: type["R5Client"],
+        webhook_id: str,
+        webhook_url: str,
+        webhook_token: str | None,
+        payload_content: Literal["id-only", "full-resource"],
+        subscription: SubscriptionDefinition[r5.AnyResource],
+    ) -> r5.Subscription:
+        return r5.Subscription(
+            status="requested",
+            reason=f"Autogenerated subscription for {webhook_id}",
+            topic=subscription["topic"],
+            channelType=r5.Coding(
+                system="http://terminology.hl7.org/CodeSystem/subscription-channel-type",
+                code="rest-hook",
+            ),
+            content=payload_content,
+            # maxCount must be 1
+            maxCount=1,
+            heartbeatPeriod=20,
+            timeout=60,
+            endpoint=webhook_url,
+            parameter=[r5.SubscriptionParameter(name="X-Api-Key", value=webhook_token)] if webhook_token else [],
+        )
 
 
-async def r5_fetch_subscription_events(
-    fhir_client: AsyncFHIRClient,
-    subscription: r5.Subscription,
-    since: int | None,
-    until: int | None,
-) -> list[SubscriptionEvent]:
-    bundle_data = await fhir_client.execute(
-        f"Subscription/{subscription.id}/$events",
-        method="GET",
-        params={"eventsSinceNumber": since, "eventsUntilNumber": until},
-    )
-    return r5_extract_subscription_events_from_bundle(bundle_data)
+def _extract_relative_references_recursive(instance: BaseModel) -> BaseModel:
+    if isinstance(instance, r5.Reference) and instance.reference:
+        instance.reference = extract_relative_reference(instance.reference)
 
+        return instance
 
-def r5_extract_subscription_info(subscription: r5.Subscription) -> SubscriptionInfo:
-    token = None
-    parameters = subscription.parameter or []
-    for parameter in parameters:
-        if parameter.name.lower() == "x-api-key":
-            token = parameter.value
+    for field_name in instance.model_fields:
+        field_value = getattr(instance, field_name)
+        if isinstance(field_value, list):
+            for sub_field in field_value:
+                _extract_relative_references_recursive(sub_field)
+        if isinstance(field_value, BaseModel):
+            _extract_relative_references_recursive(field_value)
 
-    return {"status": subscription.status, "token": token}
-
-
-def r5_extract_subscription_events_from_bundle(
-    bundle_data: dict,
-) -> list[SubscriptionEvent]:
-    notification_bundle = r5.Bundle(**bundle_data)
-    assert notification_bundle.entry
-    assert notification_bundle.entry[0]
-    assert notification_bundle.entry[0].resource
-    subscription_status = notification_bundle.entry[0].resource
-    assert isinstance(subscription_status, r5.SubscriptionStatus)
-
-    return [
-        (event.focus.reference, event.timestamp, int(event.eventNumber))
-        for event in (subscription_status.notificationEvent or [])
-        if event.focus and event.focus.reference
-    ]
-
-
-def r5_build_subscription(
-    name: str, webhook_url: str, token: str, subscription: SubscriptionDefinition
-) -> r5.Subscription:
-    return r5.Subscription(
-        status="requested",
-        reason=f"Autogenerated subscription for {name}",
-        topic=subscription["topic"],
-        channelType=r5.Coding(
-            system="http://terminology.hl7.org/CodeSystem/subscription-channel-type",
-            code="rest-hook",
-        ),
-        content="id-only",
-        # maxCount must be 1
-        maxCount=1,
-        heartbeatPeriod=20,
-        timeout=60,
-        endpoint=webhook_url,
-        parameter=[r5.SubscriptionParameter(name="X-Api-Key", value=token)],
-    )
+    return instance
