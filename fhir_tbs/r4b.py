@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator
-from typing import Any, Literal
+from typing import Any
 
 import fhirpy_types_r4b as r4b
 from aiohttp import web
@@ -9,8 +9,9 @@ from pydantic import BaseModel
 
 from .implementation import tbs_ctx_factory
 from .types import (
-    PayloadContentType,
+    SubscriptionCommonDefinition,
     SubscriptionDefinition,
+    SubscriptionDefinitionPrepared,
     SubscriptionEvent,
     SubscriptionInfo,
     VersionedClientProtocol,
@@ -25,7 +26,7 @@ def r4b_tbs_ctx_factory(  # noqa: PLR0913
     subscriptions: list[SubscriptionDefinition[r4b.AnyResource]],
     *,
     subscription_fhir_client: AsyncFHIRClient | None = None,
-    subscription_payload_content: PayloadContentType = "id-only",
+    subscription_defaults: SubscriptionCommonDefinition | None = None,
     webhook_token: str | None = None,
 ) -> AsyncGenerator[None, None]:
     return tbs_ctx_factory(
@@ -35,7 +36,7 @@ def r4b_tbs_ctx_factory(  # noqa: PLR0913
         webhook_path_prefix,
         subscriptions,
         subscription_fhir_client=subscription_fhir_client,
-        subscription_payload_content=subscription_payload_content,
+        subscription_defaults=subscription_defaults,
         webhook_token=webhook_token,
     )
 
@@ -125,8 +126,7 @@ class R4BClient(VersionedClientProtocol[r4b.Subscription, r4b.AnyResource]):
         webhook_id: str,
         webhook_url: str,
         webhook_token: str | None,
-        payload_content: Literal["id-only", "full-resource"],
-        subscription: SubscriptionDefinition[r4b.AnyResource],
+        subscription: SubscriptionDefinitionPrepared[r4b.AnyResource],
     ) -> r4b.Subscription:
         return r4b.Subscription(
             meta=r4b.Meta(
@@ -142,7 +142,7 @@ class R4BClient(VersionedClientProtocol[r4b.Subscription, r4b.AnyResource]):
                     extension=[
                         r4b.Extension(
                             url="http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-payload-content",
-                            valueCode=payload_content,
+                            valueCode=subscription["payload_content"],
                         )
                     ],
                 ),
@@ -150,18 +150,18 @@ class R4BClient(VersionedClientProtocol[r4b.Subscription, r4b.AnyResource]):
                 endpoint=webhook_url,
                 header=[f"X-Api-Key: {webhook_token}"] if webhook_token else None,
                 extension=[
-                    # maxCount must be 1
                     r4b.Extension(
                         url="http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-max-count",
+                        # maxCount must be 1
                         valuePositiveInt=1,
                     ),
                     r4b.Extension(
                         url="http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-heartbeat-period",
-                        valuePositiveInt=20,
+                        valuePositiveInt=subscription["heartbeat_period"],
                     ),
                     r4b.Extension(
                         url="http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-timeout",
-                        valuePositiveInt=60,
+                        valuePositiveInt=subscription["timeout"],
                     ),
                 ],
             ),
@@ -177,20 +177,20 @@ class R4BClient(VersionedClientProtocol[r4b.Subscription, r4b.AnyResource]):
         )
 
 
-def _build_filter_criteria(subscription: SubscriptionDefinition[r4b.AnyResource]) -> str:
+def _build_filter_criteria(subscription: SubscriptionDefinitionPrepared[r4b.AnyResource]) -> str:
     params: dict[str, Any] = {}
 
     resource_type = None
 
-    for f in subscription["filterBy"]:
+    for f in subscription["filter_by"]:
         if not resource_type:
-            resource_type = f["resourceType"]
-        elif resource_type != f["resourceType"]:
+            resource_type = f["resource_type"]
+        elif resource_type != f["resource_type"]:
             raise NotImplementedError("Only one resource type is supported for filters")
 
-        param_name = f["filterParameter"]
+        param_name = f["filter_parameter"]
         if "modifier" in f:
-            param_name = f'{f["filterParameter"]}:{f["modifier"]}'
+            param_name = f'{f["filter_parameter"]}:{f["modifier"]}'
         param_value = f["value"]
         if "comparator" in f:
             param_value = f'{f["comparator"]}{f["value"]}'

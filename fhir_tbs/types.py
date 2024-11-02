@@ -9,8 +9,8 @@ AnyResourceType = TypeVar("AnyResourceType")
 
 
 class FilterBy(TypedDict):
-    resourceType: str
-    filterParameter: str
+    resource_type: str
+    filter_parameter: str
     value: str
     comparator: NotRequired[str]
     modifier: NotRequired[str]
@@ -25,11 +25,26 @@ SubscriptionType = TypeVar("SubscriptionType", bound=ResourceProtocol)
 PayloadContentType = Literal["id-only", "full-resource"]
 
 
-class SubscriptionDefinition(Generic[AnyResourceType], TypedDict):
+class SubscriptionCommonDefinition(TypedDict):
+    payload_content: NotRequired[PayloadContentType]
+    heartbeat_period: NotRequired[int]
+    timeout: NotRequired[int]
+
+
+class SubscriptionDefinition(Generic[AnyResourceType], SubscriptionCommonDefinition):
     handler: SubscriptionHandler[AnyResourceType]
-    filterBy: list[FilterBy]
+    filter_by: list[FilterBy]
     topic: str
     webhook_id: NotRequired[str]
+
+
+class SubscriptionDefinitionPrepared(Generic[AnyResourceType], TypedDict):
+    filter_by: list[FilterBy]
+    topic: str
+    
+    payload_content: PayloadContentType
+    heartbeat_period: int
+    timeout: int
 
 
 class SubscriptionInfo(TypedDict):
@@ -51,8 +66,7 @@ class VersionedClientProtocol(Generic[SubscriptionType, AnyResourceType], Protoc
         webhook_id: str,
         webhook_url: str,
         webhook_token: str | None,
-        payload_content: Literal["id-only", "full-resource"],
-        subscription: SubscriptionDefinition[AnyResourceType],
+        subscription: SubscriptionDefinitionPrepared[AnyResourceType],
     ) -> SubscriptionType: ...
 
     @classmethod

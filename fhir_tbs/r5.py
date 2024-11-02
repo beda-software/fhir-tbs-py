@@ -1,5 +1,4 @@
 from collections.abc import AsyncGenerator
-from typing import Literal
 
 import fhirpy_types_r5 as r5
 from aiohttp import web
@@ -10,8 +9,9 @@ from fhir_tbs.utils import extract_relative_reference
 
 from .implementation import tbs_ctx_factory
 from .types import (
-    PayloadContentType,
+    SubscriptionCommonDefinition,
     SubscriptionDefinition,
+    SubscriptionDefinitionPrepared,
     SubscriptionEvent,
     SubscriptionInfo,
     VersionedClientProtocol,
@@ -25,7 +25,7 @@ def r5_tbs_ctx_factory(  # noqa: PLR0913
     subscriptions: list[SubscriptionDefinition[r5.AnyResource]],
     *,
     subscription_fhir_client: AsyncFHIRClient | None = None,
-    subscription_payload_content: PayloadContentType = "id-only",
+    subscription_defaults: SubscriptionCommonDefinition | None = None,
     webhook_token: str | None = None,
 ) -> AsyncGenerator[None, None]:
     return tbs_ctx_factory(
@@ -35,7 +35,7 @@ def r5_tbs_ctx_factory(  # noqa: PLR0913
         webhook_path_prefix,
         subscriptions,
         subscription_fhir_client=subscription_fhir_client,
-        subscription_payload_content=subscription_payload_content,
+        subscription_defaults=subscription_defaults,
         webhook_token=webhook_token,
     )
 
@@ -124,8 +124,7 @@ class R5Client(VersionedClientProtocol[r5.Subscription, r5.AnyResource]):
         webhook_id: str,
         webhook_url: str,
         webhook_token: str | None,
-        payload_content: Literal["id-only", "full-resource"],
-        subscription: SubscriptionDefinition[r5.AnyResource],
+        subscription: SubscriptionDefinitionPrepared[r5.AnyResource],
     ) -> r5.Subscription:
         return r5.Subscription(
             status="requested",
@@ -135,13 +134,25 @@ class R5Client(VersionedClientProtocol[r5.Subscription, r5.AnyResource]):
                 system="http://terminology.hl7.org/CodeSystem/subscription-channel-type",
                 code="rest-hook",
             ),
-            content=payload_content,
+            content=subscription["payload_content"],
             # maxCount must be 1
             maxCount=1,
-            heartbeatPeriod=20,
-            timeout=60,
+            heartbeatPeriod=subscription["heartbeat_period"],
+            timeout=subscription["timeout"],
             endpoint=webhook_url,
-            parameter=[r5.SubscriptionParameter(name="X-Api-Key", value=webhook_token)] if webhook_token else [],
+            parameter=[r5.SubscriptionParameter(name="X-Api-Key", value=webhook_token)]
+            if webhook_token
+            else [],
+            filterBy=[
+                r5.SubscriptionFilterBy(
+                    resourceType=filter_by["resource_type"],
+                    filterParameter=filter_by["filter_parameter"],
+                    comparator=filter_by.get("comparator"),
+                    modifier=filter_by.get("modifier"),
+                    value=filter_by["value"],
+                )
+                for filter_by in subscription["filter_by"]
+            ],
         )
 
 

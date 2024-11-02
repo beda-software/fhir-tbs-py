@@ -1,13 +1,13 @@
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from uuid import uuid4
 
 from aiohttp import web
 from fhirpy import AsyncFHIRClient
 
 from .types import (
     AnyResourceType,
-    PayloadContentType,
+    SubscriptionCommonDefinition,
     SubscriptionDefinition,
+    SubscriptionDefinitionPrepared,
     SubscriptionHandler,
     VersionedClientProtocol,
 )
@@ -21,10 +21,25 @@ async def tbs_ctx_factory(  # noqa: PLR0913
     subscriptions: list[SubscriptionDefinition[AnyResourceType]],
     *,
     subscription_fhir_client: AsyncFHIRClient | None = None,
-    subscription_payload_content: PayloadContentType = "id-only",
+    subscription_defaults: SubscriptionCommonDefinition | None = None,
     webhook_token: str | None = None,
 ) -> AsyncGenerator[None, None]:
+    subscription_defaults = subscription_defaults or {}
     for subscription in subscriptions:
+        subscription_prepared: SubscriptionDefinitionPrepared[AnyResourceType] = {
+            "payload_content": subscription.get(
+                "payload_content",
+                subscription_defaults.get("payload_content", "id-only"),
+            ),
+            "timeout": subscription.get("timeout", subscription_defaults.get("timeout", 20)),
+            "heartbeat_period": subscription.get(
+                "heartbeat_period",
+                subscription_defaults.get("heartbeat_period", 60),
+            ),
+            "filter_by": subscription["filter_by"],
+            "topic": subscription["topic"],
+        }
+
         handler = subscription["handler"]
         webhook_id = subscription.get("webhook_id")
         if not webhook_id:
@@ -53,8 +68,7 @@ async def tbs_ctx_factory(  # noqa: PLR0913
                         webhook_id,
                         webhook_url,
                         webhook_token,
-                        subscription_payload_content,
-                        subscription,
+                        subscription_prepared,
                     )
                 )
 
