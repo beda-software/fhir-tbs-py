@@ -66,15 +66,6 @@ subscriptions: list[SubscriptionDefinition[r4b.AnyResource]] = [
 tbs = R4BTBS(subscriptions=subscriptions)
 
 
-def tbs_ctx(app: web.Application) -> AsyncGenerator[None, None]:
-    return tbs.ctx_factory(
-        app,
-        app_url="http://app:8080",
-        webhook_path_prefix="webhook",
-        subscription_fhir_client=app[fhir_client_key]
-    )
-
-
 def create_app() -> web.Application:
     app = web.Application()
     app[fhir_client_key] = AsyncFHIRClient(...)
