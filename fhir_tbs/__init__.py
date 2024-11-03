@@ -1,4 +1,3 @@
-from .implementation import tbs_ctx_factory
 from .types import FilterBy, SubscriptionDefinition
 
 __title__ = "fhir-tbs-py"
@@ -14,5 +13,4 @@ VERSION = __version__
 __all__ = [
     "SubscriptionDefinition",
     "FilterBy",
-    "tbs_ctx_factory",
 ]

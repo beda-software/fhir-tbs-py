@@ -14,6 +14,11 @@ Install `fhir-tbs[r4b]` or `fhir-tbs[r5]` using poetry/pipenv/pip.
 
 ## Usage
 
+The package is responsible for adding new routes per subscription and subscribing to the subscriptions (optional).
+For this purpose [https://docs.aiohttp.org/en/stable/web_advanced.html#cleanup-context](aiohttp cleanup_ctx) is used.
+The package provides `ctx_factory` that should be used for creating `cleanup_ctx`. Inside you `cleanup_ctx` all the application variables can be accessed that earlier were initialized using `on_startup/`cleanup_ctx`.
+
+
 Create `subscriptions.py` with the following content:
 
 ```python
@@ -23,7 +28,7 @@ from collections.abc import AsyncGenerator
 from fhirpy import AsyncFHIRClient
 import fhirpy_types_r4b as r4b
 from fhir_tbs import SubscriptionDefinition
-from fhir_tbs.r4b import r4b_tbs_ctx_factory
+from fhir_tbs.r4b import R4BTBS
 from aiohttp import web
 
 # Make sure that app has fhir_client_key
@@ -52,18 +57,26 @@ subscriptions: list[SubscriptionDefinition[r4b.AnyResource]] = [
 ]
 
 
+tbs = R4BTBS(subscriptions=subscriptions)
+
+
 def tbs_ctx(app: web.Application) -> AsyncGenerator[None, None]:
-    return r4b_tbs_ctx_factory(
+    return tbs.ctx_factory(
         app,
-        "http://app:8080",
-        "webhook",
-        subscriptions,
-        subscription_fhir_client=app[fhir_client_key],
+        app_url="http://app:8080",
+        webhook_path_prefix="webhook",
+        subscription_fhir_client=app[ak.fhir_client_key]
     )
+
+
+def create_app() -> web.Application:
+    app = web.Application()
+    app[ak.fhir_client_key] = AsyncFHIRClient(...)
+    app.cleanup_ctx.append(tbx_ctx)
+
 ```
 
 
-Add `tbs_ctx` to `app.cleanup_ctx`.
 
 
 ## Using in aidbox-python-sdk for external subscriptions
@@ -72,14 +85,15 @@ Add `tbs_ctx` to `app.cleanup_ctx`.
 ```python
 external_webhook_path_prefix_parts = ["external-webhook"]
 
+external_tbs = R4BTBS(subscriptions=subscriptions)
 
-def external_tbs_ctx(app: web.Application) -> AsyncGenerator[None, None]:
-    return r4b_tbs_ctx_factory(
+def setup_external_tbs(app: web.Application) -> None:
+    return setup_tbs(
         app,
-        config.aidbox_public_url,
-        "/".join(external_webhook_path_prefix_parts),
-        subscriptions,
-        subscription_fhir_client=app[ak.fhir_client_keey],
+        external_tbs,
+        app_url="http://aidbox.example.com",
+        webhook_prefix_path="/".join(external_webhook_path_prefix_parts),
+        subscription_fhir_client=app[ak.fhir_client_key],
     )
 
 
@@ -102,6 +116,18 @@ async def external_webhook_proxy_op(
         headers={"X-Api-Key": token} if token else {},
         json=request["resource"],
     ) as response:
-        return web.json_response(await response.json(), status=response.status)
+        return web.Response(
+            body=await response.text(),
+            status=response.status,
+            content_type=response.content_type,
+        )
+
+
+def create_app() -> web.Application:
+    app = web.Application()
+    app[ak.fhir_client_key] = AsyncFHIRClient(...)
+
+    setup_external_tbs(app)
+
 ```
 

@@ -1,55 +1,27 @@
-from collections.abc import AsyncGenerator
-
 import fhirpy_types_r5 as r5
-from aiohttp import web
 from fhirpy import AsyncFHIRClient
 from pydantic import BaseModel
 
 from fhir_tbs.utils import extract_relative_reference
 
-from .implementation import tbs_ctx_factory
+from .implementation import AbstractTBS
 from .types import (
-    SubscriptionCommonDefinition,
-    SubscriptionDefinition,
     SubscriptionDefinitionPrepared,
     SubscriptionEvent,
     SubscriptionInfo,
-    VersionedClientProtocol,
 )
 
 
-def r5_tbs_ctx_factory(  # noqa: PLR0913
-    app: web.Application,
-    app_url: str,
-    webhook_path_prefix: str,
-    subscriptions: list[SubscriptionDefinition[r5.AnyResource]],
-    *,
-    subscription_fhir_client: AsyncFHIRClient | None = None,
-    subscription_defaults: SubscriptionCommonDefinition | None = None,
-    webhook_token: str | None = None,
-) -> AsyncGenerator[None, None]:
-    return tbs_ctx_factory(
-        R5Client,
-        app,
-        app_url,
-        webhook_path_prefix,
-        subscriptions,
-        subscription_fhir_client=subscription_fhir_client,
-        subscription_defaults=subscription_defaults,
-        webhook_token=webhook_token,
-    )
-
-
-class R5Client(VersionedClientProtocol[r5.Subscription, r5.AnyResource]):
+class R5TBS(AbstractTBS[r5.Subscription, r5.AnyResource]):
     @classmethod
     async def fetch_subscription(
-        cls: type["R5Client"], fhir_client: AsyncFHIRClient, webhook_url: str
+        cls: type["R5TBS"], fhir_client: AsyncFHIRClient, webhook_url: str
     ) -> r5.Subscription | None:
         return await fhir_client.resources(r5.Subscription).search(url=webhook_url).first()
 
     @classmethod
     async def fetch_subscription_events(
-        cls: type["R5Client"],
+        cls: type["R5TBS"],
         fhir_client: AsyncFHIRClient,
         subscription: r5.Subscription,
         since: int | None,
@@ -64,7 +36,7 @@ class R5Client(VersionedClientProtocol[r5.Subscription, r5.AnyResource]):
 
     @classmethod
     def extract_subscription_info(
-        cls: type["R5Client"], subscription: r5.Subscription
+        cls: type["R5TBS"], subscription: r5.Subscription
     ) -> SubscriptionInfo:
         token = None
         parameters = subscription.parameter or []
@@ -76,7 +48,7 @@ class R5Client(VersionedClientProtocol[r5.Subscription, r5.AnyResource]):
 
     @classmethod
     def extract_subscription_events_from_bundle(
-        cls: type["R5Client"],
+        cls: type["R5TBS"],
         bundle_data: dict,
     ) -> list[SubscriptionEvent[r5.AnyResource]]:
         notification_bundle = r5.Bundle(**bundle_data)
@@ -120,7 +92,7 @@ class R5Client(VersionedClientProtocol[r5.Subscription, r5.AnyResource]):
 
     @classmethod
     def build_subscription(
-        cls: type["R5Client"],
+        cls: type["R5TBS"],
         webhook_id: str,
         webhook_url: str,
         webhook_token: str | None,
