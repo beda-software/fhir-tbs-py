@@ -1,3 +1,4 @@
+from .implementation import setup_tbs
 from .types import FilterBy, SubscriptionDefinition
 
 __title__ = "fhir-tbs-py"
@@ -13,4 +14,5 @@ VERSION = __version__
 __all__ = [
     "SubscriptionDefinition",
     "FilterBy",
+    "setup_tbs",
 ]
