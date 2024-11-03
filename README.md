@@ -17,10 +17,10 @@ Install `fhir-tbs[r4b]` or `fhir-tbs[r5]` using poetry/pipenv/pip.
 1. Instantiate R4BTBS/R5TBS class with predefined subscriptions.
     `tbs = R4BTBS(subscriptions=[...])`
 2. Invoke `setup_tbs(app, tbs, webhook_path_prefix="webhook")` on app initialization passing needed parameters:
-    The package supports managed and non-managed subscriptions through `manage_subscriptions` flag (default is False).
-    Managed subscriptions requires `app_url` and `get_fhir_client` args to be set.
-    Also in the future the package will be responsible for handling delivery errors, in that case
-    `handle_delivery_errors` should be set to `True` and it also requires `app_url` and `get_fhir_client` args to be set.
+    - The package supports managed and non-managed subscriptions through `manage_subscriptions` flag (default is False). 
+        Managed subscriptions requires `app_url` and `get_fhir_client` args to be set.
+    - Also in the future the package will be responsible for handling delivery errors, in that case
+        `handle_delivery_errors` should be set to `True` and it also requires `app_url` and `get_fhir_client` args to be set.
 
 
 ### Example
