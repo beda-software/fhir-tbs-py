@@ -1,10 +1,13 @@
-## 0.0.1b
+## 1.0.0a0
 
-- Introduce breaking changes in the API
+- Breaking changes in the API:
+    - `setup_tbs` as the public interface
+    - underscore keys in the subscription definitions
+    - non-managed subscriptions by default
+- Support for non-managed subscriptions
+- Support for optional token auth for webhook
 - Support for both `id-only`/`full-resource`
-- Optional token auth for webhook
-- Optional automatic registration for R4B/R5
 
-## 0.0.1a
+## 0.0.1b1
 
 - Initial release
