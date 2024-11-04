@@ -30,20 +30,23 @@ class SubscriptionCommonDefinition(TypedDict):
     timeout: NotRequired[int]
 
 
-class SubscriptionDefinition(Generic[AnyResourceType], SubscriptionCommonDefinition):
-    handler: SubscriptionHandler[AnyResourceType]
-    filter_by: list[FilterBy]
+class SubscriptionDefinition(SubscriptionCommonDefinition):
+    filter_by: NotRequired[list[FilterBy]]
     topic: str
-    webhook_id: NotRequired[str]
 
 
-class SubscriptionDefinitionPrepared(Generic[AnyResourceType], TypedDict):
-    filter_by: list[FilterBy]
+class SubscriptionDefinitionPrepared(TypedDict):
+    filter_by: NotRequired[list[FilterBy]]
     topic: str
-    
+
     payload_content: PayloadContentType
     heartbeat_period: int
     timeout: int
+
+
+class SubscriptionDefinitionWithHandler(Generic[AnyResourceType], SubscriptionDefinition):
+    handler: SubscriptionHandler[AnyResourceType]
+    webhook_id: NotRequired[str]
 
 
 class SubscriptionInfo(TypedDict):
@@ -56,4 +59,3 @@ class SubscriptionEvent(Generic[AnyResourceType], TypedDict):
     included_resources: list[AnyResourceType]
     timestamp: str | None
     event_number: int
-

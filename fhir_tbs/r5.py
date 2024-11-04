@@ -96,7 +96,7 @@ class R5TBS(AbstractTBS[r5.Subscription, r5.AnyResource]):
         webhook_id: str,
         webhook_url: str,
         webhook_token: str | None,
-        subscription: SubscriptionDefinitionPrepared[r5.AnyResource],
+        subscription: SubscriptionDefinitionPrepared,
     ) -> r5.Subscription:
         return r5.Subscription(
             status="requested",
@@ -112,19 +112,25 @@ class R5TBS(AbstractTBS[r5.Subscription, r5.AnyResource]):
             heartbeatPeriod=subscription["heartbeat_period"],
             timeout=subscription["timeout"],
             endpoint=webhook_url,
-            parameter=[r5.SubscriptionParameter(name="X-Api-Key", value=webhook_token)]
-            if webhook_token
-            else [],
-            filterBy=[
-                r5.SubscriptionFilterBy(
-                    resourceType=filter_by["resource_type"],
-                    filterParameter=filter_by["filter_parameter"],
-                    comparator=filter_by.get("comparator"),
-                    modifier=filter_by.get("modifier"),
-                    value=filter_by["value"],
-                )
-                for filter_by in subscription["filter_by"]
-            ],
+            parameter=(
+                [r5.SubscriptionParameter(name="X-Api-Key", value=webhook_token)]
+                if webhook_token
+                else []
+            ),
+            filterBy=(
+                [
+                    r5.SubscriptionFilterBy(
+                        resourceType=filter_by["resource_type"],
+                        filterParameter=filter_by["filter_parameter"],
+                        comparator=filter_by.get("comparator"),
+                        modifier=filter_by.get("modifier"),
+                        value=filter_by["value"],
+                    )
+                    for filter_by in subscription["filter_by"]
+                ]
+                if "filter_by" in subscription
+                else None
+            ),
         )
 
 

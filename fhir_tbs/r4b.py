@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from .implementation import AbstractTBS
 from .types import (
+    FilterBy,
     SubscriptionDefinitionPrepared,
     SubscriptionEvent,
     SubscriptionInfo,
@@ -99,7 +100,7 @@ class R4BTBS(AbstractTBS[r4b.Subscription, r4b.AnyResource]):
         webhook_id: str,
         webhook_url: str,
         webhook_token: str | None,
-        subscription: SubscriptionDefinitionPrepared[r4b.AnyResource],
+        subscription: SubscriptionDefinitionPrepared,
     ) -> r4b.Subscription:
         return r4b.Subscription(
             meta=r4b.Meta(
@@ -139,23 +140,27 @@ class R4BTBS(AbstractTBS[r4b.Subscription, r4b.AnyResource]):
                 ],
             ),
             criteria=subscription["topic"],
-            criteria__ext=r4b.Element(
-                extension=[
-                    r4b.Extension(
-                        url="http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
-                        valueString=_build_filter_criteria(subscription),
-                    )
-                ],
+            criteria__ext=(
+                r4b.Element(
+                    extension=[
+                        r4b.Extension(
+                            url="http://hl7.org/fhir/uv/subscriptions-backport/StructureDefinition/backport-filter-criteria",
+                            valueString=_build_filter_criteria(subscription["filter_by"]),
+                        )
+                    ],
+                )
+                if "filter_by" in subscription
+                else None
             ),
         )
 
 
-def _build_filter_criteria(subscription: SubscriptionDefinitionPrepared[r4b.AnyResource]) -> str:
+def _build_filter_criteria(filter_by: list[FilterBy]) -> str:
     params: dict[str, Any] = {}
 
     resource_type = None
 
-    for f in subscription["filter_by"]:
+    for f in filter_by:
         if not resource_type:
             resource_type = f["resource_type"]
         elif resource_type != f["resource_type"]:
@@ -169,9 +174,6 @@ def _build_filter_criteria(subscription: SubscriptionDefinitionPrepared[r4b.AnyR
             param_value = f'{f["comparator"]}{f["value"]}'
 
         params[param_name] = param_value
-
-    if not resource_type:
-        raise TypeError("At least one filterBy is required for AidboxSubscription")
 
     return f"{resource_type}?{encode_params(params)}"
 

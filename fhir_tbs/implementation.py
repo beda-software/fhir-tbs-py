@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from typing import Generic, Self
+from typing import Generic, Self, Unpack, cast
 
 from aiohttp import web
 from fhirpy import AsyncFHIRClient
@@ -10,6 +10,7 @@ from .types import (
     SubscriptionCommonDefinition,
     SubscriptionDefinition,
     SubscriptionDefinitionPrepared,
+    SubscriptionDefinitionWithHandler,
     SubscriptionEvent,
     SubscriptionHandler,
     SubscriptionInfo,
@@ -59,17 +60,53 @@ def setup_tbs(  # noqa: PLR0913
 
 
 class AbstractTBS(Generic[SubscriptionType, AnyResourceType]):
-    subscriptions: list[SubscriptionDefinition[AnyResourceType]]
+    subscriptions: list[SubscriptionDefinitionWithHandler[AnyResourceType]]
     subscription_defaults: SubscriptionCommonDefinition | None
 
     def __init__(
         self: Self,
         *,
-        subscriptions: list[SubscriptionDefinition[AnyResourceType]] | None = None,
+        subscriptions: list[SubscriptionDefinitionWithHandler[AnyResourceType]] | None = None,
         subscription_defaults: SubscriptionCommonDefinition | None = None,
     ) -> None:
+        """Initialize TBS with initial subscriptions and default settings.
+
+        Args:
+            subscriptions: List of initial subscriptions.
+            subscription_defaults: Default settings for all subscriptions.
+        """
         self.subscriptions = subscriptions or []
         self.subscription_defaults = subscription_defaults
+
+    def define(
+        self: Self, *, webhook_id: str | None = None, **kwargs: Unpack[SubscriptionDefinition]
+    ) -> Callable[[SubscriptionHandler[AnyResourceType]], SubscriptionHandler[AnyResourceType]]:
+        """Define subscription handler.
+
+        Args:
+            topic: URL of SubscriptionTopic to subscribe.
+            webhook_id: Optional webhook id that will be part of webhook URL.
+            filter_by: Optional list of filters applied to topic.
+            **kwargs: Additional subscription definition parameters.
+        """
+
+        def wrapper(
+            handler: SubscriptionHandler[AnyResourceType],
+        ) -> SubscriptionHandler[AnyResourceType]:
+            self.subscriptions.append(
+                cast(
+                    SubscriptionDefinitionWithHandler,
+                    {
+                        **kwargs,
+                        "handler": handler,
+                        **({"webhook_id": webhook_id} if webhook_id else {}),
+                    },
+                )
+            )
+
+            return handler
+
+        return wrapper
 
     async def _ctx_factory(  # noqa: PLR0913
         self: Self,
@@ -84,7 +121,7 @@ class AbstractTBS(Generic[SubscriptionType, AnyResourceType]):
     ) -> AsyncGenerator[None, None]:
         subscription_defaults = self.subscription_defaults or {}
         for subscription in self.subscriptions:
-            subscription_prepared: SubscriptionDefinitionPrepared[AnyResourceType] = {
+            subscription_prepared: SubscriptionDefinitionPrepared = {
                 "payload_content": subscription.get(
                     "payload_content",
                     subscription_defaults.get("payload_content", "id-only"),
@@ -102,8 +139,11 @@ class AbstractTBS(Generic[SubscriptionType, AnyResourceType]):
             webhook_id = subscription.get("webhook_id")
             if not webhook_id:
                 if not manage_subscriptions:
-                    raise TypeError("`webhook_id` should be set for non-managed subscriptions")
+                    raise TypeError(
+                        "`webhook_id` should be set for non-managed subscriptions in the definition"
+                    )
                 webhook_id = f"{handler.__module__}.{handler.__name__}"
+
             webhook_path_parts = [webhook_path_prefix.strip("/"), webhook_id]
             webhook_path = "/".join(webhook_path_parts)
 
@@ -205,7 +245,7 @@ class AbstractTBS(Generic[SubscriptionType, AnyResourceType]):
         webhook_id: str,
         webhook_url: str,
         webhook_token: str | None,
-        subscription: SubscriptionDefinitionPrepared[AnyResourceType],
+        subscription: SubscriptionDefinitionPrepared,
     ) -> SubscriptionType: ...
 
     @classmethod

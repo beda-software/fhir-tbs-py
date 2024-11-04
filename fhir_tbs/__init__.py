@@ -1,5 +1,5 @@
 from .implementation import setup_tbs
-from .types import FilterBy, SubscriptionDefinition
+from .types import FilterBy, SubscriptionDefinitionWithHandler
 
 __title__ = "fhir-tbs-py"
 __version__ = "1.0.0a0"
@@ -12,7 +12,7 @@ VERSION = __version__
 
 
 __all__ = [
-    "SubscriptionDefinition",
+    "SubscriptionDefinitionWithHandler",
     "FilterBy",
     "setup_tbs",
 ]
