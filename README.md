@@ -3,8 +3,8 @@
 Topic-based subscription extension for python aiohttp web applications
 
 **Features**:
-- Unified R4B/R5 API for automatic registration
-- Optional automatic registration
+- Unified R4B/R5 API for automatic registration (managed subscriptions)
+- Optional managed subscriptions
 - Optional authentication using X-Api-Key
 - `id-only`/`full-resource` support
 
@@ -14,22 +14,32 @@ Install `fhir-tbs[r4b]` or `fhir-tbs[r5]` using poetry/pipenv/pip.
 
 ## Usage
 
-1. Instantiate R4BTBS/R5TBS class with predefined subscriptions.
-    `tbs = R4BTBS(subscriptions=[...])`
-2. Invoke `setup_tbs(app, tbs, webhook_path_prefix="webhook")` on app initialization passing needed parameters:
+1. Define subscriptions using `fhir_tbs.SubscriptionDefinition` type.
+2. Instantiate R4BTBS/R5TBS class with predefined subscriptions.
+    - `tbs = R4BTBS(subscriptions=subscriptions)`
+    - `subscription_defaults` can be optionally passed to define defaults for managed subscriptions
+        - `payload_content` - `id-only`/`full-resource` (default is `id-only`)
+        - `timeout` - default is 60
+        - `heartbeat_period` - default is 20
+3. Invoke `setup_tbs(app, tbs, webhook_path_prefix="webhook")` on app initialization passing needed parameters:
     - The package supports managed and non-managed subscriptions through `manage_subscriptions` flag (default is False). 
         Managed subscriptions requires `app_url` and `get_fhir_client` args to be set.
     - Also in the future the package will be responsible for handling delivery errors, in that case
         `handle_delivery_errors` should be set to `True` and it also requires `app_url` and `get_fhir_client` args to be set.
+    - Specify `webhook_token` for required auth token that should be passed via `X-Api-Key` header
 
+### Specification
 
-### Example
+TBD
+
+### Examples
+
+#### General example
 
 Create `subscriptions.py` with the following content:
 
 ```python
 import logging
-from collections.abc import AsyncGenerator
 
 from fhirpy import AsyncFHIRClient
 import fhirpy_types_r4b as r4b
@@ -44,20 +54,27 @@ fhir_client_key = web.AppKey("fhir_client_key", AsyncFHIRClient)
 async def new_appointment_sub(
     app: web.Application,
     appointment_ref: str,
-    _included_resources: list[r4b.AnyResource],
+    included_resources: list[r4b.AnyResource],
     _timestamp: str
 ) -> None:
     fhir_client = app[fhir_client_key]
+    # For id-only use fhir_client to fetch the resource
     appointment = r4b.Appointment(**(await fhir_client.get(appointment_ref)))
-    logging.error("New appointment %s", appointment.model_dump())
+    # For full-resource find in in included resources by reference (straightforward example) 
+    appointment = [
+        resource for resource in included_resources 
+        if appointment_ref == f"{resource.resourceType}/{resource.id}"
+    ][0]
+
+    logging.info("New appointment %s", appointment.model_dump())
 
 
 subscriptions: list[SubscriptionDefinition[r4b.AnyResource]] = [
     {
         "topic": "https://example.com/SubscriptionTopic/new-appointment-event",
         "handler": new_appointment_sub,
-        "filterBy": [
-            {"resourceType": "Appointment", "filterParameter": "status", "value": "booked"}
+        "filter_by": [
+            {"resource_type": "Appointment", "filter_parameter": "status", "value": "booked"}
         ],
     },
 ]
@@ -82,7 +99,7 @@ def create_app() -> web.Application:
 ```
 
 
-## Using in aidbox-python-sdk for external subscriptions
+#### Using in aidbox-python-sdk for external subscriptions
 
 
 ```python
