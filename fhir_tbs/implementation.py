@@ -28,23 +28,20 @@ def setup_tbs(  # noqa: PLR0913
     app_url: str | None = None,
     get_fhir_client: Callable[[web.Application], AsyncFHIRClient] | None = None,
 ) -> None:
-    """
-    Setup TBS routes and manage subscriptions/handle delivery errors
+    """Setup TBS routes and manage subscriptions/handle delivery errors.
 
     Args:
         app: aiohttp application.
-        webhook_path_prefix: prefix for the generated aiohttp routes.
-        manage_subscriptions (optional): the flag that indicates whether
+        tbs: TBS class instance.
+        webhook_path_prefix: Prefix for the generated aiohttp routes.
+        webhook_token: The authorization token that is checked in X-Api-Token header.
+        manage_subscriptions: The flag that indicates whether
             subscription registration/population should be enabled.
-        handle_delivery_errors (optional): WIP the flag that indicated whether
+        handle_delivery_errors: WIP The flag that indicated whether
             subscription delivery errors (e.g. broken connection or missing events) should be handled.
-        app_url (optional): application url that is used
-            when `manage_subscriptions`/`handle_delivery_errors` are set.
-        get_fhir_client (optional): getter for web.Application that returns AsyncFHIRClient
+        app_url: Application url that is used when `manage_subscriptions`/`handle_delivery_errors` are set.
+        get_fhir_client: Getter for web.Application that returns AsyncFHIRClient
             that further used when `manage_subscriptions`/`handle_delivery_errors` are set.
-
-    Returns:
-        None
     """
 
     def ctx(app: web.Application) -> AsyncGenerator[None, None]:

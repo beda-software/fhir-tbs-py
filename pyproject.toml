@@ -71,15 +71,18 @@ line-length = 100
 extend-exclude = ["emded"]
 
 [tool.ruff.lint]
-select = ["I", "E", "F", "N", "B", "C4", "PT", "UP", "I001", "A", "RET", "TID251", "RUF", "SIM", "PYI", "T20", "PIE", "G", "ISC", "PL", "ANN"]
+select = ["I", "E", "F", "N", "B", "C4", "PT", "UP", "I001", "A", "RET", "TID251", "RUF", "SIM", "PYI", "T20", "PIE", "G", "ISC", "PL", "ANN", "TCH", "FBT", "ASYNC", "D"]
 # E501 is disabled because line limit is controlled by black
 # RUF005 is disabled because we use asyncio tasks without cancelling
 # RUF015 is disabled because index access is preferred way for us
 # PIE804 is disabled because we often use FHIR like camelCase variables
 # SIM102 is disabled because nested if's are more readable
 # SIM117 is disabled because nested with's are more readable
-ignore = ["E501", "RUF006", "RUF015", "PIE804", "SIM102", "SIM117"]
+ignore = ["E501", "RUF006", "RUF015", "PIE804", "SIM102", "SIM117", "D10"]
 unfixable = ["F401"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.autohooks]
 mode = "poetry"
