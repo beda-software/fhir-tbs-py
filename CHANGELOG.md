@@ -1,3 +1,7 @@
+## 1.0.0.a1
+
+- Fix issues with resolving recursive references
+
 ## 1.0.0a0
 
 - Breaking changes in the API:

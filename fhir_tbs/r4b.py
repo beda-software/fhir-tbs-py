@@ -188,7 +188,8 @@ def _extract_relative_references_recursive(instance: BaseModel) -> BaseModel:
         field_value = getattr(instance, field_name)
         if isinstance(field_value, list):
             for sub_field in field_value:
-                _extract_relative_references_recursive(sub_field)
+                if isinstance(field_value, BaseModel):
+                    _extract_relative_references_recursive(sub_field)
         if isinstance(field_value, BaseModel):
             _extract_relative_references_recursive(field_value)
 
